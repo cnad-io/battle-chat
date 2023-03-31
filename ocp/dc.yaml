@@ -1,0 +1,87 @@
+kind: DeploymentConfig
+
+apiVersion: apps.openshift.io/v1
+
+metadata:
+
+  name: battle-chat-openshift
+
+  namespace: staging-pro
+
+  labels:
+
+    app: battle-chat-openshift
+
+spec:
+
+  triggers:
+    - type: ConfigChange
+  replicas: 1
+  selector:
+    app: battle-chat-openshift
+    deploymentconfig: battle-chat-openshift
+  template:
+    metadata:
+      labels:
+        app: battle-chat-openshift
+        deploymentconfig: battle-chat-openshift
+    spec:
+      serviceAccountName: battlechat
+      containers:
+        - name: battle-chat-openshift
+          image: 'quay.io/sergio_canales_e/battle-chat-openshift:0.14.0'
+          ports:
+            - name: battlechat
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: INFINISPAN_USER
+              value: UCNAOBKXJT
+            - name: INFINISTPAN_PASS
+              value: Z3YBSq5INP
+            - name: INFINISPAN_SERVER_LIST
+              value: 'cache.staging.svc.cluster.local:11222'
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+        - resources: {}
+          terminationMessagePath: /dev/termination-log
+          name: oauth-proxy
+          ports:
+            - name: oauth-proxy
+              containerPort: 8888
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: secret-battlechat-proxy
+              mountPath: /etc/proxy/secrets
+            - name: battlechat-tls
+              mountPath: /etc/tls/private
+          terminationMessagePolicy: File
+          image: 'quay.io/openshift/origin-oauth-proxy:4.10'
+          args:
+            - '-provider=openshift'
+            - '-https-address=:8888'
+            - '-http-address='
+            - '-email-domain=*'
+            - '-upstream=http://localhost:8080'
+            - '-tls-cert=/etc/tls/private/tls.crt'
+            - '-tls-key=/etc/tls/private/tls.key'
+            - '-cookie-secret-file=/etc/proxy/secrets/session_secret'
+            - '-openshift-service-account=battlechat'
+            - >-
+              -openshift-sar={"resource":"namespaces","resourceName":"staging","namespace":"staging","verb":"get"}
+            - '-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+            - '-skip-auth-regex=^/metrics'
+      serviceAccount: battlechat
+      volumes:
+        - name: battlechat-tls
+          secret:
+            secretName: secret-battlechat-tls
+            defaultMode: 420
+        - name: secret-battlechat-proxy
+          secret:
+            secretName: battlechat-proxy
+            defaultMode: 420
+      dnsPolicy: ClusterFirst

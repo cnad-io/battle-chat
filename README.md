@@ -69,8 +69,18 @@ curl -u admin:password --digest -X GET http://localhost:11222/rest/v2/caches/cha
 
 # Quickstart
 
+## RUN LOCAL
+
 ```shell
 podman run -d -p 11222:11222 -e USER="admin" -e PASS="password" --net=host quay.io/infinispan/server:13.0
 curl -v -u admin:password --digest -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST http://localhost:11222/rest/v2/caches/character -d "@./conf/character.json"
 ./mvnw compile quarkus:dev
+```
+
+## NATIVE BUILD AND PUBLISH
+
+```shell
+./mvnw package -Pnative -Dquarkus.native.container-build=true -Dquarkus.native.container-runtime=podman
+podman build . -t quay.io/sergio_canales_e/battle-chat-openshift:0.9.0
+podman push --creds ADMIN:PASS quay.io/sergio_canales_e/battle-chat-openshift:0.9.0
 ```
